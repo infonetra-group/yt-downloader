@@ -26,8 +26,8 @@ export interface DownloadProgress {
   message: string;
 }
 
-// Replace this with your Railway backend URL
-const BACKEND_URL = 'https://your-app-name.railway.app'; // Update this with your actual Railway URL
+// Your Railway backend URL
+const BACKEND_URL = 'https://yt-downloader-production-7491.up.railway.app:8080';
 
 function App() {
   const [url, setUrl] = useState('');
