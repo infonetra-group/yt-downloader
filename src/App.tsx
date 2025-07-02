@@ -26,6 +26,9 @@ export interface DownloadProgress {
   message: string;
 }
 
+// Replace this with your Railway backend URL
+const BACKEND_URL = 'https://your-app-name.railway.app'; // Update this with your actual Railway URL
+
 function App() {
   const [url, setUrl] = useState('');
   const [selectedQuality, setSelectedQuality] = useState('720p');
@@ -117,7 +120,7 @@ function App() {
     return dateStr;
   }
 
-  // Metadata fetching using backend 
+  // Metadata fetching using Railway backend 
   const fetchMetadata = async (videoUrl: string) => {
     setProgress(prev => ({ ...prev, status: 'fetching', message: 'Extracting metadata...', percent: 0 }));
     setError('');
@@ -146,8 +149,8 @@ function App() {
         return;
       }
 
-      // Call the Python backend for metadata extraction
-      const response = await fetch('http://localhost:8000/metadata', {
+      // Call the Railway backend for metadata extraction
+      const response = await fetch(`${BACKEND_URL}/metadata`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -184,7 +187,7 @@ function App() {
     } catch {
       if (progressTimer) clearInterval(progressTimer);
       setProgress(prev => ({ ...prev, status: 'error', percent: 0, message: 'Connection failed' }));
-      setError('Failed to connect to metadata service. Please try again.');
+      setError('Failed to connect to backend service. Please try again.');
     }
   };
 
@@ -231,7 +234,7 @@ function App() {
       }, 5000);
     }, 30000);
     try {
-      const response = await fetch('http://localhost:8000/download', {
+      const response = await fetch(`${BACKEND_URL}/download`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

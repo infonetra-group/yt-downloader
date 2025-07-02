@@ -7,11 +7,12 @@ import os
 from pydantic import BaseModel
 from typing import Any, Dict
 
-app = FastAPI()
+app = FastAPI(title="YouTube Metadata API", version="1.0.0")
 
+# Updated CORS to allow your deployed frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, replace with your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,6 +24,14 @@ class MetadataRequest(BaseModel):
 class DownloadRequest(BaseModel):
     url: str
     quality: str = 'best'
+
+@app.get("/")
+async def root():
+    return {"message": "YouTube Metadata API is running!", "status": "healthy"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "youtube-metadata-api"}
 
 def get_video_metadata(url: str) -> Dict[str, Any]:
     ydl_opts = {'quiet': True, 'skip_download': True}
@@ -76,29 +85,36 @@ async def download_endpoint(request: DownloadRequest, background_tasks: Backgrou
     quality = request.quality
     if not url:
         return {"error": "URL is required"}
-    with tempfile.TemporaryDirectory() as tmpdir:
-        format_code = get_format_code(quality)
-        ydl_opts = {
-            'format': format_code,
-            'merge_output_format': 'mp4',
-            'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
-            'quiet': True,
-            'noplaylist': True,
-        }
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info)
-            # Move the file out of the temp dir so it persists after the context manager
-            final_path = os.path.join(os.getcwd(), os.path.basename(filename))
-            os.rename(filename, final_path)
-            # Schedule file deletion after response is sent
-            background_tasks.add_task(os.remove, final_path)
-            return FileResponse(
-                final_path,
-                media_type='video/mp4',
-                filename=os.path.basename(final_path),
-                background=background_tasks
-            )
-        except Exception as e:
-            return {"error": str(e)} 
+    
+    # Use /tmp directory for Railway
+    tmpdir = "/tmp"
+    os.makedirs(tmpdir, exist_ok=True)
+    
+    format_code = get_format_code(quality)
+    ydl_opts = {
+        'format': format_code,
+        'merge_output_format': 'mp4',
+        'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
+        'quiet': True,
+        'noplaylist': True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+        
+        # Schedule file deletion after response is sent
+        background_tasks.add_task(os.remove, filename)
+        return FileResponse(
+            filename,
+            media_type='video/mp4',
+            filename=os.path.basename(filename),
+            background=background_tasks
+        )
+    except Exception as e:
+        return {"error": str(e)}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
