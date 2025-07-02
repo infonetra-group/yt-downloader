@@ -5,6 +5,7 @@ import { GlassmorphismCard } from './components/GlassmorphismCard';
 import { ProgressBar } from './components/ProgressBar';
 import { QualitySelector } from './components/QualitySelector';
 import { MetadataDisplay } from './components/MetadataDisplay';
+import { API_ENDPOINTS } from './config';
 
 export interface VideoMetadata {
   title: string;
@@ -147,7 +148,7 @@ function App() {
       }
 
       // Call the Python backend for metadata extraction
-      const response = await fetch('http://localhost:8000/metadata', {
+      const response = await fetch(API_ENDPOINTS.metadata, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -231,7 +232,7 @@ function App() {
       }, 5000);
     }, 30000);
     try {
-      const response = await fetch('http://localhost:8000/download', {
+      const response = await fetch(API_ENDPOINTS.download, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
