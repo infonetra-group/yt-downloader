@@ -101,4 +101,8 @@ async def download_endpoint(request: DownloadRequest, background_tasks: Backgrou
                 background=background_tasks
             )
         except Exception as e:
-            return {"error": str(e)} 
+            return {"error": str(e)}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"} 
