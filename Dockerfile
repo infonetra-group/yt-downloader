@@ -2,31 +2,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies including ffmpeg
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install ffmpeg
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better Docker layer caching
+# Copy requirements and install dependencies
 COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copy the entire application
+# Copy the rest of the app
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p /tmp
-
-# Expose port (Railway will set the PORT environment variable)
+# Expose the port Railway expects
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
-
-# Start the application
-CMD python3 -m uvicorn scripts.yt_metadata_api:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start the FastAPI app with Uvicorn
+CMD ["uvicorn", "scripts.yt_metadata_api:app", "--host", "0.0.0.0", "--
