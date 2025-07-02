@@ -4,8 +4,13 @@ from fastapi.responses import FileResponse
 import yt_dlp
 import tempfile
 import os
+import logging
 from pydantic import BaseModel
 from typing import Any, Dict
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YouTube Metadata API", version="1.0.0")
 
@@ -27,13 +32,16 @@ class DownloadRequest(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "YouTube Metadata API is running!", "status": "healthy"}
+    logger.info("Root endpoint called")
+    return {"message": "YouTube Metadata API is running!", "status": "healthy", "version": "1.0.0"}
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "youtube-metadata-api"}
+    logger.info("Health check endpoint called")
+    return {"status": "healthy", "service": "youtube-metadata-api", "version": "1.0.0"}
 
 def get_video_metadata(url: str) -> Dict[str, Any]:
+    logger.info(f"Getting metadata for URL: {url}")
     ydl_opts = {'quiet': True, 'skip_download': True}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -45,7 +53,8 @@ def get_video_metadata(url: str) -> Dict[str, Any]:
                     label = f"{f['height']}p"
                     if label not in formats:
                         formats.append(label)
-            return {
+            
+            result = {
                 "title": info.get("title"),
                 "uploader": info.get("uploader"),
                 "duration": info.get("duration"),
@@ -56,7 +65,10 @@ def get_video_metadata(url: str) -> Dict[str, Any]:
                 "thumbnail": info.get("thumbnail"),
                 "available_formats": formats,
             }
+            logger.info(f"Successfully extracted metadata for: {result.get('title', 'Unknown')}")
+            return result
     except Exception as e:
+        logger.error(f"Error extracting metadata: {str(e)}")
         return {"error": str(e)}
 
 def get_format_code(quality):
@@ -73,6 +85,7 @@ def get_format_code(quality):
 
 @app.post("/metadata")
 async def metadata_endpoint(request: MetadataRequest):
+    logger.info(f"Metadata request received for URL: {request.url}")
     url = request.url
     if not url:
         return {"error": "URL is required"}
@@ -81,6 +94,7 @@ async def metadata_endpoint(request: MetadataRequest):
 
 @app.post("/download")
 async def download_endpoint(request: DownloadRequest, background_tasks: BackgroundTasks):
+    logger.info(f"Download request received for URL: {request.url}, Quality: {request.quality}")
     url = request.url
     quality = request.quality
     if not url:
@@ -99,10 +113,12 @@ async def download_endpoint(request: DownloadRequest, background_tasks: Backgrou
         'noplaylist': True,
     }
     try:
+        logger.info(f"Starting download with format: {format_code}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
         
+        logger.info(f"Download completed: {filename}")
         # Schedule file deletion after response is sent
         background_tasks.add_task(os.remove, filename)
         return FileResponse(
@@ -112,9 +128,19 @@ async def download_endpoint(request: DownloadRequest, background_tasks: Backgrou
             background=background_tasks
         )
     except Exception as e:
+        logger.error(f"Download error: {str(e)}")
         return {"error": str(e)}
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    logger.info("YouTube Metadata API starting up...")
+    logger.info(f"Python version: {os.sys.version}")
+    logger.info(f"Working directory: {os.getcwd()}")
+    logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Starting server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
