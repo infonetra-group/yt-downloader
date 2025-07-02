@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # Log Python version and path for debugging
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Python executable: {sys.executable}")
+logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
 
 app = FastAPI(
     title="YouTube Downloader API",
@@ -105,6 +106,13 @@ def get_format_code(quality: str) -> str:
     }
     return format_map.get(quality, format_map["best"])
 
+@app.on_event("startup")
+async def startup_event():
+    """Log startup information"""
+    port = os.environ.get("PORT", "8000")
+    logger.info(f"Application starting up on port {port}")
+    logger.info(f"Health check endpoint: /health")
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -112,7 +120,8 @@ async def root():
         "message": "YouTube Downloader API", 
         "status": "running",
         "python_version": sys.version,
-        "environment": os.environ.get("RAILWAY_ENVIRONMENT", "unknown")
+        "environment": os.environ.get("RAILWAY_ENVIRONMENT", "unknown"),
+        "port": os.environ.get("PORT", "8000")
     }
 
 @app.get("/health")
@@ -123,11 +132,13 @@ async def health_check():
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             pass
         
+        logger.info("Health check passed")
         return {
             "status": "healthy", 
             "service": "youtube-downloader-api",
             "python_version": sys.version,
-            "yt_dlp_available": True
+            "yt_dlp_available": True,
+            "port": os.environ.get("PORT", "8000")
         }
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
@@ -275,4 +286,10 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     logger.info(f"Starting server on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=port,
+        log_level="info",
+        access_log=True
+    )
