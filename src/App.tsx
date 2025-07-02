@@ -26,8 +26,8 @@ export interface DownloadProgress {
   message: string;
 }
 
-// Your Railway backend URL
-const BACKEND_URL = 'https://yt-downloader-production-7491.up.railway.app:8080';
+// Your Railway backend URL (without port - Railway handles this automatically)
+const BACKEND_URL = 'https://yt-downloader-production-7491.up.railway.app';
 
 function App() {
   const [url, setUrl] = useState('');
@@ -120,16 +120,53 @@ function App() {
     return dateStr;
   }
 
+  // Test backend connection
+  const testBackendConnection = async () => {
+    try {
+      console.log('Testing backend connection to:', BACKEND_URL);
+      const response = await fetch(`${BACKEND_URL}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Backend health check successful:', data);
+        return true;
+      } else {
+        console.error('Backend health check failed:', response.status, response.statusText);
+        return false;
+      }
+    } catch (error) {
+      console.error('Backend connection test failed:', error);
+      return false;
+    }
+  };
+
   // Metadata fetching using Railway backend 
   const fetchMetadata = async (videoUrl: string) => {
-    setProgress(prev => ({ ...prev, status: 'fetching', message: 'Extracting metadata...', percent: 0 }));
+    setProgress(prev => ({ ...prev, status: 'fetching', message: 'Testing backend connection...', percent: 0 }));
     setError('');
-    let progressValue = 0;
+    
+    // First test the backend connection
+    const isBackendHealthy = await testBackendConnection();
+    if (!isBackendHealthy) {
+      setError('Backend service is not responding. Please check if your Railway deployment is running.');
+      setProgress(prev => ({ ...prev, status: 'error', percent: 0, message: 'Backend connection failed' }));
+      return;
+    }
+
+    setProgress(prev => ({ ...prev, message: 'Extracting metadata...', percent: 10 }));
+    
+    let progressValue = 10;
     let progressTimer: NodeJS.Timeout | null = null;
     const totalDuration = 8000; // 8 seconds
     const interval = 100; // ms
     const maxPercent = 90;
     const increment = maxPercent / (totalDuration / interval);
+    
     // Simulate progress
     const startSimulatedProgress = () => {
       progressTimer = setInterval(() => {
@@ -137,7 +174,9 @@ function App() {
         setProgress(prev => ({ ...prev, percent: progressValue }));
       }, interval);
     };
+    
     startSimulatedProgress();
+    
     try {
       // Enhanced URL validation
       const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/)|youtu\.be\/)\w+/;
@@ -149,6 +188,8 @@ function App() {
         return;
       }
 
+      console.log('Calling metadata endpoint:', `${BACKEND_URL}/metadata`);
+      
       // Call the Railway backend for metadata extraction
       const response = await fetch(`${BACKEND_URL}/metadata`, {
         method: 'POST',
@@ -158,7 +199,10 @@ function App() {
         body: JSON.stringify({ url: videoUrl })
       });
 
+      console.log('Metadata response status:', response.status);
+      
       const result = await response.json();
+      console.log('Metadata response data:', result);
       
       if (!response.ok || result.error) {
         if (progressTimer) clearInterval(progressTimer);
@@ -184,10 +228,11 @@ function App() {
         availableFormats: result.available_formats || [],
       });
       
-    } catch {
+    } catch (error) {
       if (progressTimer) clearInterval(progressTimer);
+      console.error('Metadata fetch error:', error);
       setProgress(prev => ({ ...prev, status: 'error', percent: 0, message: 'Connection failed' }));
-      setError('Failed to connect to backend service. Please try again.');
+      setError('Failed to connect to backend service. Please check your Railway deployment.');
     }
   };
 
@@ -234,6 +279,8 @@ function App() {
       }, 5000);
     }, 30000);
     try {
+      console.log('Calling download endpoint:', `${BACKEND_URL}/download`);
+      
       const response = await fetch(`${BACKEND_URL}/download`, {
         method: 'POST',
         headers: {
@@ -241,10 +288,14 @@ function App() {
         },
         body: JSON.stringify({ url, quality: selectedQuality })
       });
+      
       if (patienceTimeout) clearTimeout(patienceTimeout);
       if (magicTimeout) clearTimeout(magicTimeout);
       if (wholesomeInterval) clearInterval(wholesomeInterval);
       setDownloadInitMessage('');
+      
+      console.log('Download response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to download video');
@@ -273,6 +324,7 @@ function App() {
       if (error instanceof Error) {
         message = error.message;
       }
+      console.error('Download error:', error);
       setError(message);
       setProgress(prev => ({ ...prev, status: 'error', message: message || 'Download failed' }));
     }
@@ -299,6 +351,9 @@ function App() {
               >
                 Abdul Hadi
               </a>
+            </p>
+            <p className="text-sm text-gray-400 mt-2">
+              Backend: {BACKEND_URL}
             </p>
           </div>
 
