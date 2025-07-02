@@ -5,14 +5,22 @@ import yt_dlp
 import tempfile
 import os
 import logging
+import sys
 from pydantic import BaseModel
 from typing import Any, Dict
 import asyncio
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+
+# Log Python version and path for debugging
+logger.info(f"Python version: {sys.version}")
+logger.info(f"Python executable: {sys.executable}")
 
 app = FastAPI(
     title="YouTube Downloader API",
@@ -100,12 +108,35 @@ def get_format_code(quality: str) -> str:
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"message": "YouTube Downloader API", "status": "running"}
+    return {
+        "message": "YouTube Downloader API", 
+        "status": "running",
+        "python_version": sys.version,
+        "environment": os.environ.get("RAILWAY_ENVIRONMENT", "unknown")
+    }
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint for Railway"""
-    return {"status": "healthy", "service": "youtube-downloader-api"}
+    try:
+        # Test yt-dlp functionality
+        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+            pass
+        
+        return {
+            "status": "healthy", 
+            "service": "youtube-downloader-api",
+            "python_version": sys.version,
+            "yt_dlp_available": True
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "python_version": sys.version,
+            "yt_dlp_available": False
+        }
 
 @app.post("/metadata")
 async def metadata_endpoint(request: MetadataRequest):
@@ -243,4 +274,5 @@ async def internal_error_handler(request: Request, exc):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Starting server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
