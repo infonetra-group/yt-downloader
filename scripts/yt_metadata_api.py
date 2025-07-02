@@ -18,10 +18,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Log Python version and path for debugging
+# Log startup information
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Python executable: {sys.executable}")
 logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
+logger.info(f"Working directory: {os.getcwd()}")
 
 app = FastAPI(
     title="YouTube Downloader API",
@@ -110,8 +111,14 @@ def get_format_code(quality: str) -> str:
 async def startup_event():
     """Log startup information"""
     port = os.environ.get("PORT", "8000")
-    logger.info(f"Application starting up on port {port}")
+    logger.info("=" * 50)
+    logger.info("YouTube Downloader API Starting Up")
+    logger.info("=" * 50)
+    logger.info(f"Port: {port}")
+    logger.info(f"Environment: {os.environ.get('RAILWAY_ENVIRONMENT', 'unknown')}")
     logger.info(f"Health check endpoint: /health")
+    logger.info(f"Available endpoints: /, /health, /metadata, /download")
+    logger.info("=" * 50)
 
 @app.get("/")
 async def root():
@@ -119,9 +126,11 @@ async def root():
     return {
         "message": "YouTube Downloader API", 
         "status": "running",
+        "version": "1.0.0",
         "python_version": sys.version,
         "environment": os.environ.get("RAILWAY_ENVIRONMENT", "unknown"),
-        "port": os.environ.get("PORT", "8000")
+        "port": os.environ.get("PORT", "8000"),
+        "endpoints": ["/", "/health", "/metadata", "/download"]
     }
 
 @app.get("/health")
@@ -136,18 +145,23 @@ async def health_check():
         return {
             "status": "healthy", 
             "service": "youtube-downloader-api",
+            "version": "1.0.0",
             "python_version": sys.version,
             "yt_dlp_available": True,
-            "port": os.environ.get("PORT", "8000")
+            "port": os.environ.get("PORT", "8000"),
+            "timestamp": str(asyncio.get_event_loop().time())
         }
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "python_version": sys.version,
-            "yt_dlp_available": False
-        }
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "error": str(e),
+                "python_version": sys.version,
+                "yt_dlp_available": False
+            }
+        )
 
 @app.post("/metadata")
 async def metadata_endpoint(request: MetadataRequest):
