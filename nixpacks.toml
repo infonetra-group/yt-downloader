@@ -1,8 +1,12 @@
 [phases.setup]
-nixPkgs = ['python311', 'python311Packages.pip', 'ffmpeg']
+nixPkgs = ['python311', 'python311Packages.pip', 'python311Packages.setuptools', 'python311Packages.wheel', 'ffmpeg']
 
 [phases.install]
-cmds = ['python3 -m pip install --upgrade pip', 'python3 -m pip install -r requirements.txt']
+cmds = [
+  'python3 -c "import ensurepip; ensurepip.bootstrap()"',
+  'python3 -m pip install --upgrade pip setuptools wheel',
+  'python3 -m pip install -r requirements.txt'
+]
 
 [start]
 cmd = 'python3 -m uvicorn scripts.yt_metadata_api:app --host 0.0.0.0 --port $PORT'
