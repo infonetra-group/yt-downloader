@@ -18,10 +18,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Get port from environment variable
+PORT = int(os.environ.get('PORT', 8000))
+
 # Log startup information
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Python executable: {sys.executable}")
 logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
+logger.info(f"Resolved PORT: {PORT}")
 logger.info(f"Working directory: {os.getcwd()}")
 
 app = FastAPI(
@@ -110,11 +114,10 @@ def get_format_code(quality: str) -> str:
 @app.on_event("startup")
 async def startup_event():
     """Log startup information"""
-    port = os.environ.get("PORT", "8000")
     logger.info("=" * 50)
     logger.info("YouTube Downloader API Starting Up")
     logger.info("=" * 50)
-    logger.info(f"Port: {port}")
+    logger.info(f"Port: {PORT}")
     logger.info(f"Environment: {os.environ.get('RAILWAY_ENVIRONMENT', 'unknown')}")
     logger.info(f"Health check endpoint: /health")
     logger.info(f"Available endpoints: /, /health, /metadata, /download")
@@ -129,7 +132,7 @@ async def root():
         "version": "1.0.0",
         "python_version": sys.version,
         "environment": os.environ.get("RAILWAY_ENVIRONMENT", "unknown"),
-        "port": os.environ.get("PORT", "8000"),
+        "port": PORT,
         "endpoints": ["/", "/health", "/metadata", "/download"]
     }
 
@@ -148,7 +151,7 @@ async def health_check():
             "version": "1.0.0",
             "python_version": sys.version,
             "yt_dlp_available": True,
-            "port": os.environ.get("PORT", "8000"),
+            "port": PORT,
             "timestamp": str(asyncio.get_event_loop().time())
         }
     except Exception as e:
@@ -298,12 +301,11 @@ async def internal_error_handler(request: Request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    logger.info(f"Starting server on port {port}")
+    logger.info(f"Starting server on port {PORT}")
     uvicorn.run(
         app, 
         host="0.0.0.0", 
-        port=port,
+        port=PORT,
         log_level="info",
         access_log=True
     )
