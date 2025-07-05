@@ -18,24 +18,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Enhanced port handling with debugging
-PORT_ENV = os.environ.get('PORT', '8000')
-logger.info(f"Raw PORT environment variable: '{PORT_ENV}' (type: {type(PORT_ENV)})")
-
-try:
-    PORT = int(PORT_ENV)
-    logger.info(f"Successfully parsed PORT: {PORT}")
-except ValueError as e:
-    logger.error(f"Failed to parse PORT '{PORT_ENV}': {e}")
-    PORT = 8000
-    logger.info(f"Using default PORT: {PORT}")
-
-# Log startup information
-logger.info(f"Python version: {sys.version}")
-logger.info(f"Python executable: {sys.executable}")
-logger.info(f"All environment variables: {dict(os.environ)}")
-logger.info(f"Working directory: {os.getcwd()}")
-
 app = FastAPI(
     title="YouTube Downloader API",
     description="API for downloading YouTube videos",
@@ -122,10 +104,11 @@ def get_format_code(quality: str) -> str:
 @app.on_event("startup")
 async def startup_event():
     """Log startup information"""
+    port = int(os.environ.get('PORT', 8000))
     logger.info("=" * 50)
     logger.info("YouTube Downloader API Starting Up")
     logger.info("=" * 50)
-    logger.info(f"Port: {PORT}")
+    logger.info(f"Port: {port}")
     logger.info(f"Environment: {os.environ.get('RAILWAY_ENVIRONMENT', 'unknown')}")
     logger.info(f"Health check endpoint: /health")
     logger.info(f"Available endpoints: /, /health, /metadata, /download")
@@ -134,13 +117,14 @@ async def startup_event():
 @app.get("/")
 async def root():
     """Root endpoint"""
+    port = int(os.environ.get('PORT', 8000))
     return {
         "message": "YouTube Downloader API", 
         "status": "running",
         "version": "1.0.0",
         "python_version": sys.version,
         "environment": os.environ.get("RAILWAY_ENVIRONMENT", "unknown"),
-        "port": PORT,
+        "port": port,
         "endpoints": ["/", "/health", "/metadata", "/download"]
     }
 
@@ -152,6 +136,7 @@ async def health_check():
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             pass
         
+        port = int(os.environ.get('PORT', 8000))
         logger.info("Health check passed")
         return {
             "status": "healthy", 
@@ -159,7 +144,7 @@ async def health_check():
             "version": "1.0.0",
             "python_version": sys.version,
             "yt_dlp_available": True,
-            "port": PORT,
+            "port": port,
             "timestamp": str(asyncio.get_event_loop().time())
         }
     except Exception as e:
@@ -307,16 +292,9 @@ async def internal_error_handler(request: Request, exc):
         content={"detail": "Internal server error"}
     )
 
+# This will only run when called directly, not when imported
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"Starting server on port {PORT} (type: {type(PORT)})")
-    logger.info(f"Host: 0.0.0.0")
-    logger.info(f"App: {app}")
-    
-    uvicorn.run(
-        app, 
-        host="0.0.0.0", 
-        port=PORT,
-        log_level="info",
-        access_log=True
-    )
+    port = int(os.environ.get('PORT', 8000))
+    logger.info(f"Starting server directly on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", access_log=True)
