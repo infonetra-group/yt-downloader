@@ -27,5 +27,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
 
-# Start the application using the Python script directly
+# Start the application - Railway deployment v2
 CMD ["python", "scripts/yt_metadata_api.py"]
