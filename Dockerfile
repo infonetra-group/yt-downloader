@@ -18,6 +18,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application files
 COPY . .
 
+# Make start script executable
+RUN chmod +x start.sh
+
 # Create non-root user
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
@@ -30,5 +33,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Start application directly with Python
-CMD ["python", "-c", "import os; import uvicorn; from scripts.yt_metadata_api import app; port = int(os.environ.get('PORT', 8000)); uvicorn.run(app, host='0.0.0.0', port=port)"]
+# Use shell script to start
+CMD ["./start.sh"]
