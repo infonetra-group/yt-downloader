@@ -18,14 +18,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Get port from environment variable
-PORT = int(os.environ.get('PORT', 8000))
+# Enhanced port handling with debugging
+PORT_ENV = os.environ.get('PORT', '8000')
+logger.info(f"Raw PORT environment variable: '{PORT_ENV}' (type: {type(PORT_ENV)})")
+
+try:
+    PORT = int(PORT_ENV)
+    logger.info(f"Successfully parsed PORT: {PORT}")
+except ValueError as e:
+    logger.error(f"Failed to parse PORT '{PORT_ENV}': {e}")
+    PORT = 8000
+    logger.info(f"Using default PORT: {PORT}")
 
 # Log startup information
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Python executable: {sys.executable}")
-logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
-logger.info(f"Resolved PORT: {PORT}")
+logger.info(f"All environment variables: {dict(os.environ)}")
 logger.info(f"Working directory: {os.getcwd()}")
 
 app = FastAPI(
@@ -301,7 +309,10 @@ async def internal_error_handler(request: Request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"Starting server on port {PORT}")
+    logger.info(f"Starting server on port {PORT} (type: {type(PORT)})")
+    logger.info(f"Host: 0.0.0.0")
+    logger.info(f"App: {app}")
+    
     uvicorn.run(
         app, 
         host="0.0.0.0", 
