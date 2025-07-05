@@ -27,5 +27,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
 
-# Start the application - use python directly to handle PORT environment variable
-CMD python -c "import os; import uvicorn; from scripts.yt_metadata_api import app; uvicorn.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))"
+# Start the application using the Python script directly
+CMD ["python", "scripts/yt_metadata_api.py"]
